@@ -52,11 +52,14 @@ Download URL:
     https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
 -----------------------------------------------------------------------------------
 Installation instructions:
+-----------------------------------------------------------------------------------
+Method - 1
 	1. Unzip "Visionary App.zip" under C:\users\<Username> where <Username> is the name of the user logged in (Alternate folder location could be chosen)
 	2. Install Python, follow product standard installation steps - Default configuration
 	3. Install Python environment, execute the following commands (requires Internet)
 		>python -m venv venv_311
 
+Method - 2
 Alternately, follow the isntructions as below to download full content from guthub
 	- git clone https://github.com/PegasusGirl/Visionary
 	- unzip venv_311.zip 
