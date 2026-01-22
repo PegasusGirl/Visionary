@@ -53,16 +53,16 @@ Download URL:
 -----------------------------------------------------------------------------------
 Installation instructions:
 -----------------------------------------------------------------------------------
-Method - 1
-	1. Unzip "Visionary App.zip" under C:\users\<Username> where <Username> is the name of the user logged in (Alternate folder location could be chosen)
+Method - 1 (GitHub method)
+	Follow the isntructions as below to download full content from guthub
+	- git clone https://github.com/PegasusGirl/Visionary
+	- unzip/extract venv_311.zip 
+
+Method - 2 (If visionary app archive file is locally available)
+	1. If available, Unzip "Visionary App.zip" under C:\users\<Username> where <Username> is the name of the user logged in (Alternate folder location could be chosen)
 	2. Install Python, follow product standard installation steps - Default configuration
 	3. Install Python environment, execute the following commands (requires Internet)
 		>python -m venv venv_311
-
-Method - 2
-Alternately, follow the isntructions as below to download full content from guthub
-	- git clone https://github.com/PegasusGirl/Visionary
-	- unzip venv_311.zip 
 
 NOTE: A fully operational preconfigured, Python environment could be made available in a USB drive.
 
