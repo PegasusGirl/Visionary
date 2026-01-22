@@ -51,21 +51,24 @@ To enable access on mobile devices, Cloudflare Tunnel must be installed.
 Download URL:
     https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
 -----------------------------------------------------------------------------------
-Installation instructions:
------------------------------------------------------------------------------------
-Method - 1 (GitHub method)
-	Follow the isntructions as below to download full content from guthub
-	- git clone https://github.com/PegasusGirl/Visionary
-	- unzip/extract venv_311.zip 
+Additional Installation Instructions:
 
-Method - 2 (If visionary app archive file is locally available)
-	1. If available, Unzip "Visionary App.zip" under C:\users\<Username> where <Username> is the name of the user logged in (Alternate folder location could be chosen)
-	2. Install Python, follow product standard installation steps - Default configuration
-	3. Install Python environment, execute the following commands (requires Internet)
+Method - 1 (GitHub Method)
+	Follow the isntructions as below to download full content from GitHub
+	- git clone https://github.com/PegasusGirl/Visionary
+	- Unzip/extract venv_311.zip 
+
+Method - 2 (If "Visionary App" archive file is locally available)
+	1. If available, unzip "Visionary App.zip" under C:\users\<Username> where <Username> is the name of the user logged in (Alternate folder location could be chosen)
+	2. Install Python environment, execute the following commands (requires Internet)
 		>python -m venv venv_311
 
-NOTE: A fully operational preconfigured, Python environment could be made available in a USB drive.
+MANDATORY STEP:
+	- Open Command Prompt using "Run as Administrator" option
+	- Execute command:
+		>powershell Set-ExecutionPolicy RemoteSigned
 
+NOTE: A fully operational preconfigured, Python environment could be made available in a USB drive.
 -----------------------------------------------------------------------------------
 Running the Program:
 
@@ -81,5 +84,5 @@ Notes:
 
 This application is conceptual and was designed with accessibility, usability, and inclusivity as its core principles, aligning with TSA’s emphasis on real-world problem solving through technology.
 
-Please watch the demonstration video, "Program Demo.mp4," for more details (May require Media Player or similar to view the video).
+Please watch the demonstration video, "Program_Demo.mp4," for more details (May require Media Player or similar to view the video).
 -----------------------------------------------------------------------------------
