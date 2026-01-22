@@ -16,7 +16,7 @@ import io
 st.set_page_config(
     page_title="Surrounding Detector",
     page_icon="📷",
-    layout="wide", # Essential for responsiveness
+    layout="wide", 
 )
 
 #gradient background
