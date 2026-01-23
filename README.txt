@@ -42,7 +42,7 @@ Additional Dependencies:
 
 Install all required Python packages using:
 
-    pip install -r requirements.txt
+    python -m pip install -r requirements.txt
 -----------------------------------------------------------------------------------
 Mobile Application Support:
 
