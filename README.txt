@@ -38,6 +38,23 @@ Python Version: 3.11.9
 Download URL:
 	https://www.python.org/downloads/
 -----------------------------------------------------------------------------------
+Additional Installation Instructions:
+
+Follow the instructions as below to download full content from GitHub:
+	1. git clone https://github.com/PegasusGirl/Visionary
+	2. Unzip/extract venv_311.zip 
+
+Additional Download Necessary for Extraction of Zip File:
+
+Download 7-Zip.
+	URL:
+		https://www.7-zip.org/download.html
+
+MANDATORY STEP:
+	1. Open Command Prompt using "Run as Administrator" option
+	2. Execute command:
+		>powershell Set-ExecutionPolicy RemoteSigned
+-----------------------------------------------------------------------------------
 Additional Dependencies:
 
 Install all required Python packages using:
@@ -50,25 +67,6 @@ To enable access on mobile devices, Cloudflare Tunnel must be installed.
 
 Download URL:
     https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
------------------------------------------------------------------------------------
-Additional Installation Instructions:
-
-Method - 1 (GitHub Method)
-	Follow the isntructions as below to download full content from GitHub
-	- git clone https://github.com/PegasusGirl/Visionary
-	- Unzip/extract venv_311.zip 
-
-Method - 2 (If "Visionary App" archive file is locally available)
-	1. If available, unzip "Visionary App.zip" under C:\users\<Username> where <Username> is the name of the user logged in (Alternate folder location could be chosen)
-	2. Install Python environment, execute the following commands (requires Internet)
-		>python -m venv venv_311
-
-MANDATORY STEP:
-	- Open Command Prompt using "Run as Administrator" option
-	- Execute command:
-		>powershell Set-ExecutionPolicy RemoteSigned
-
-NOTE: A fully operational preconfigured, Python environment could be made available in a USB drive.
 -----------------------------------------------------------------------------------
 Running the Program:
 
