@@ -30,6 +30,9 @@ ASL Translator (Hearing Impairments):
 
 Text Input to Audio Converter (Visual Impairments):
     Converts typed text into spoken audio, allowing visually impaired users to understand written content through speech output.
+
+Voice Command Microphone System (Universal Accessibility):
+	A persistent, built-in microphone interface available throughout the entire application, enabling hands-free control using voice commands.
 -----------------------------------------------------------------------------------
 Software Dependencies:
 
