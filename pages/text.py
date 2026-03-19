@@ -1,23 +1,24 @@
-#WHISPER
-
-import collections
-collections.Callable = collections.abc.Callable
+#EASYOCR
 
 import streamlit as st # pyright: ignore[reportMissingImports]
-import numpy as np # pyright: ignore[reportMissingImports] 
-import whisper # pyright: ignore[reportMissingImports]
-from datetime import datetime
-import time
+import easyocr # pyright: ignore[reportMissingImports]
+import numpy as np # pyright: ignore[reportMissingImports]
+from PIL import Image # pyright: ignore[reportMissingImports]
 import io
+from gtts import gTTS # pyright: ignore[reportMissingImports] 
+from streamlit_back_camera_input import back_camera_input # pyright: ignore[reportMissingImports]
 import base64
+import whisper
 import streamlit.components.v1 as components
-from gtts import gTTS
+import time
+
+
 
 #page details
 st.set_page_config(
-    page_title="Speech to Text Transcription",
-    page_icon="📝",
-    layout="wide",
+    page_title="OCR Text to Speech",
+    page_icon="🔊",
+    layout="wide"
 )
 
 #all session states
@@ -25,17 +26,14 @@ if 'whisper_model' not in st.session_state:
     st.session_state.whisper_model = whisper.load_model("base")
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
-if "transcription" not in st.session_state:
-    st.session_state.transcription = 0
-if "voice" not in st.session_state:
-    st.session_state.voice = 0
-if "last_detected" not in st.session_state:
-    st.session_state.last_detected = []
-if 'history' not in st.session_state:
-    st.session_state.history = []
+if "input_key" not in st.session_state:
+    st.session_state.input_key = 0
+if "camera_running" not in st.session_state:
+    st.session_state.camera_running = False
+if "audio_queue" not in st.session_state:
+    st.session_state.audio_queue = None
 
-
-#intitate all audios
+#automatic audios
 @st.cache_data
 def speak_audio(text):
     try:
@@ -71,10 +69,15 @@ def play_audio(audio_data, element_id="visionary-audio"):
         </script>
     """, height=0, width=0)
 
+def queue_audio(text):
+    """Adds text to the queue to be played by the Global Speaker at the end of the script."""
+    if text:
+        st.session_state.audio_queue = text
 
-#overlaying button and welcome audio
+
+#overlaying buton and welcome audio
 if not st.session_state.unlocked:
-    welcome_text = "Speech to Text Transcription. This feature requires audio access for transcription. Allow audio access and hear what others say!"
+    welcome_text = "OCR Text to Speech Recognition. This feature requires camera access for real-time detection. Allow camera access and let the AI see the text for you. Click the camera to start detection."
     audio_data = speak_audio(welcome_text)
     
     if audio_data:
@@ -112,11 +115,10 @@ page_bg_gradient = """
 """
 st.markdown(page_bg_gradient, unsafe_allow_html=True)
 
-
 if st.button("← Back to Home"):
     st.switch_page("home/app.py")
 
-#styling main text & voice-activ. microphone
+#styling text &voice-activ. microph.
 st.markdown("""
     <style>
     h1 {
@@ -139,224 +141,125 @@ st.markdown("""
         .picture {
             font-size: 5.5vw !important;
         }
-            
     }
             
-    /* microphone */        
-    [data-testid="stVerticalBlock"] > div:has(div[class*="st-key-voice_"]) {
-        background: transparent !important;
-        background-color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        height: 0px !important; 
-        min-height: 0px !important;
-        margin: 0px !important;
-        padding: 0px !important;
-    }
-
-    div[class*="st-key-voice_"] [data-testid="stAudioInput"] {
-        position: fixed !important;
-        bottom: 30px !important; 
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        
-        background-color: white !important;
-        border-radius: 100px !important;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2) !important;
-        border: 1px solid #f0f0f0 !important;
-        
-
-        width: 400px !important;
-        height: 85px !important;
-        z-index: 999999 !important;
-        
-      
+    /* microphone*/
+    [data-testid="stAudioInput"] {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 50% !important;
+        max-width: 400px;
+        z-index: 10001;
+        background: white !important;
+        border-radius: 50px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+        pointer-events: auto !important;
         display: flex !important;
+        justify-content: center !important;
         align-items: center !important;
-        padding: 0 15px !important;
+        padding: 5px 20px !important; 
+        height: 80px !important;      
     }
-
-    div[class*="st-key-voice_"] [data-testid="stAudioInput"] > div {
-        background-color: transparent !important;
-        background: none !important;
+    [data-testid="stAudioInput"] > div {
+        background-color: transparent !important; 
         border: none !important;
-        box-shadow: none !important;
-        justify-content: flex-start !important;
         width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
     }
-
-    div[class*="st-key-voice_"] button[aria-label="Record"],
-    div[class*="st-key-voice_"] button[aria-label="Stop recording"] {
-        background-color: #FF0000 !important;
-        color: white !important;
-        border-radius: 50% !important;
-        min-width: 65px !important;
-        height: 65px !important;
-        border: none !important;
-        flex-shrink: 0 !important;
-        margin: 0 !important; /* Ensures it stays left */
-    }
-
-    div[class*="st-key-voice_"] [data-testid="stAudioInput"] span {
-        color: #333 !important;
-        font-weight: 600 !important;
-        margin-left: 20px !important;
-    }
-
-
-    [data-testid="stAudioInput"] label { 
-            display: none !important;
-    }
-    [data-testid="stAudioInput"] svg { 
-        fill: white !important; 
-        transform: scale(1.5) !important; 
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.markdown("<h1>Speech to Text Transcription</h1>", unsafe_allow_html=True)
-st.markdown("<p class='access'>This feature requires audio access for transcription.</p>", unsafe_allow_html=True)
-st.markdown("<p class='picture'>Allow audio access and hear what others say!</p>", unsafe_allow_html=True)
-
-
-
-#styling actual speech transcription microphone
-st.markdown("""
-    <style>
-    /* Target the audio input button specifically */
-    div[class*="st-key-audio_"] > div button[aria-label="Record"]  {
+    [data-testid="stAudioInput"] button[aria-label="Record"] {
         background-color: #FF0000 !important;
         color: white !important;
         border-radius: 50% !important;
         margin: 0 auto !important; 
-        
-        width: 60px !important; 
-        height: 60px !important;  
+        width: 60px !important;
+        height: 60px !important;
         transition: transform 0.2s ease !important;
     }
-
     [data-testid="stAudioInput"] button svg {
         transform: scale(1.8) !important; 
     }
             
     [data-testid="stAudioInput"] button svg:hover {
-            transform: scale(1.85) !important;
+            transform: scale(2) !important;
     }   
 
     [data-testid="stAudioInput"] button[aria-label="Stop recording"] {
         background-color: #FF0000 !important;
         color: white !important;
-        height: 150px !important;
-        width: 75px !important;
-        border-radius: 30px !important;
-                
-
-        width: 60px !important;  
-        height: 60px !important;  
+        border-radius: 50% !important;
+        width: 60px !important;
+        height: 60px !important;
         transition: transform 0.2s ease !important;
-    }            
-
-    .text {
-        font-size: 24px !important; 
-        margin-left: 5px !important;
+    }    
+    [data-testid="stAudioInput"] label {
+        display: none !important;
     }
         
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
+
+st.markdown("<h1>OCR Text to Speech Recognition</h1>", unsafe_allow_html=True)
+st.markdown("<p class='access'>This feature requires camera access for real-time detection.</p>", unsafe_allow_html=True)
+st.markdown("<p class='picture'>Allow camera access and let the AI see the text for you!</p>", unsafe_allow_html=True)
 
 
-#recording buttons
-col1, col2, col3 = st.columns([2, 2, 1])
+#load model once
+@st.cache_resource
+def load_reader():
+    return easyocr.Reader(['en'], gpu=False)
 
-with col1:
-    with st.container(key="transcription-container"):
-        transcription_file = st.audio_input("", key=f"audio_{st.session_state.transcription}")
+reader = load_reader()
 
 
-#display
-st.markdown("### 📝 Live Transcription")
-transcription_container = st.container()
+#back camera
+captured_file = back_camera_input()
 
-if transcription_file:
-    with st.spinner("Transcribing..."):
-        audio_bytes = transcription_file.read()
-        audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+def perform_capture_and_read():
+    if captured_file:
+        img = Image.open(captured_file)
+        snap = np.array(img)
         
-        result = st.session_state.whisper_model.transcribe(audio_np, fp16=False)
+        results = reader.readtext(snap, paragraph=True, y_ths=-0.1, x_ths=10.0)
         
-        st.session_state.history.append(result['text'])
-        
-        #increase key and rerun (restarts microp.)
-        st.session_state.transcription += 1
+        if len(results) > 0:
+            st.success(f"Detected {len(results)} Line(s):")
+            
+            full_text_list = []
+            for res in results:
+                line_text = res[1]
+                full_text_list.append(line_text)
+            
+            #combined with pauses
+            combined_text = " . ".join(full_text_list)
+            return combined_text
+
+        else:
+            audio_data = speak_audio("No text detected. Please try again.")
+            if audio_data:
+                play_audio(audio_data, "no-id")
+    else:
+        audio_data = speak_audio("Camera not ready. Tap the camera to intialize recognition")
+        if audio_data:
+            play_audio(audio_data, "camera-id")
+
+
+#separate button for scanning text
+if st.button("🔍 Scan Text", type="primary", use_container_width=True):
+    text_to_speak = perform_capture_and_read()
+    if text_to_speak:
+        queue_audio(text_to_speak)
         st.rerun()
 
+#unlocked state for voice-activ.
+if st.session_state.unlocked:
+    audio_file = st.audio_input("", key=f"voice_{st.session_state.input_key}")
 
-
-for text in st.session_state.history:
-    st.markdown(f'<p class="text">{text}</p>', unsafe_allow_html=True)
-
-with col2:
-    if st.session_state.history:
-        if st.button("🗑️ Clear All", use_container_width=True):
-            #reset history list
-            st.session_state.history = [] 
-
-            #increase key to reset the audio widget
-            st.session_state.transcription += 1
-            st.rerun()
-    else:
-        st.button("🗑️ Clear All", disabled=True, use_container_width=True)
-
-with col3:
-    if st.session_state.history:
-        #preparing file data
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"transcription_{timestamp}.txt"
-        full_text = "\n\n".join(st.session_state.history)
-
-        #uses pending downloads if voice-triggered
-        if "pending_download" in st.session_state:
-            data = st.session_state.pending_download["data"]
-            fname = st.session_state.pending_download["file_name"]
-
-            #clear after one use
-            del st.session_state.pending_download
-        else:
-            data = full_text
-            fname = filename
-        
-        st.download_button(
-            label="💾 Save",
-            data=full_text,
-            file_name=filename,
-            mime="text/plain",
-            use_container_width=True
-        )
-    else:
-        st.button("💾 Save", disabled=True, use_container_width=True)
-
-def perform_capture_and_read(text_to_read):
-    if text_to_read:
-        audio_data = speak_audio(text_to_read)
-        if audio_data:
-            #put a time stamp to ensure audio is played even tho text is still the same
-            play_audio(audio_data, f"audio-{int(time.time())}")
-    else:
-        warning = speak_audio("Nothing to read.")
-        if warning:
-            play_audio(warning, f"warn-{int(time.time())}")
-
-
-
-#unlocked state
-@st.fragment
-def process_audio():
-    with st.container(key="voice-pill-container"):
-        voice_file = st.audio_input("", key=f"voice_{st.session_state.voice}")
-
-    if voice_file:
+    if audio_file:
         with st.spinner("Processing..."):
-            audio_bytes = voice_file.read()
+            audio_bytes = audio_file.read()
             audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
             result = st.session_state.whisper_model.transcribe(audio_np, fp16=False)
             cmd = result['text'].lower().strip()
@@ -366,7 +269,7 @@ def process_audio():
                 "hompage": "/",
                 "visionary": "/",
                 "main page": "/",
-                "city": "pages/detector.py", 
+               "city": "pages/detector.py", 
                 "surrounding": "pages/detector.py", 
                 "surrounding detector": "pages/detector.py",
                 "rainbow": "pages/colors.py", 
@@ -386,19 +289,18 @@ def process_audio():
                 "text to audio input converter": "pages/input.py"
             }
 
-            clear_keywords = [
-                "clear", "clear all", "delete", "delete all", "reset", 
-                "clear everything", "new session", "start over", "erase"
-            ]
+            detect_keywords = ["detect", "capture", "read", "what do you see", "see"]
+            
+            is_detecting = False
 
-            #deleting
-            if any(kw in cmd for kw in clear_keywords):
-                st.session_state.history = []
-                st.session_state.voice += 1
-                speak_audio_data = speak_audio("Transcription history cleared.")
-                if speak_audio_data:
-                    play_audio(speak_audio_data, "cmd-feedback")
-                st.rerun()
+            if any(kw in cmd for kw in detect_keywords):
+                if captured_file:
+                    full_text = perform_capture_and_read()
+                    queue_audio(full_text)
+                    st.session_state.input_key +=1
+                    st.rerun()
+                else:
+                    st.warning("Tap the camera to inititate detection")
 
             #finding url for navigating to page
             found_page = None
@@ -408,15 +310,10 @@ def process_audio():
                     break
 
             if found_page:
-                st.session_state.voice += 1
+                st.session_state.input_key += 1
                 
                 #native command
                 st.switch_page(found_page)
-
-            else:
-                st.session_state.voice += 1
-                st.rerun(scope="fragment") #ensures only partial rerun
-
 
             #relocking system
             if "lock" in cmd or "re-lock" in cmd or "relock" in cmd:
@@ -425,10 +322,16 @@ def process_audio():
                     play_audio(audio_data, "lock-id")
                 time.sleep(1.5)
                 st.session_state.unlocked = False
-                st.session_state.voice += 1
+                st.session_state.input_key += 1
                 st.rerun()
 
-if st.session_state.unlocked:
-    process_audio()
+            #prevent rerun to play audio
+        st.session_state.input_key += 1
+        st.rerun()
 
-
+if st.session_state.audio_queue:
+    audio_data = speak_audio(st.session_state.audio_queue)
+    if audio_data:
+        play_audio(audio_data, f"play-{int(time.time())}")
+    # Wipe the queue immediately so it can never play again by accident
+    st.session_state.audio_queue = None
