@@ -18,7 +18,7 @@ st.set_page_config(
 
 #session states
 if 'whisper_model' not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("base")
+    st.session_state.whisper_model = whisper.load_model("tiny")
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
 if "input_key" not in st.session_state:
@@ -27,6 +27,8 @@ if "speech_placeholder" not in st.session_state:
     st.session_state.speech_placeholder = None
 if "speak_count" not in st.session_state:
     st.session_state.speak_count = 0
+if "audio_queue" not in st.session_state:
+    st.session_state.audio_queue = None
 
 #audios
 @st.cache_data
@@ -40,44 +42,38 @@ def speak_audio(text):
     except Exception as e:
         return ""
 
-def play_audio(audio_data, base_id="text"):
-    """Play audio with a unique ID every time"""
-    st.session_state.speak_count += 1
-    unique_id = f"{base_id}-{st.session_state.speak_count}"
-    
+def play_audio(audio_data, element_id="visionary-audio"):
+    """Global audio player that attempts immediate playback."""
     components.html(f"""
         <script>
             var parentDoc = window.parent.document;
-            var audio = parentDoc.getElementById('{unique_id}');
-            
-            // Optional: clean up very old elements (browser usually handles it fine)
-            // But you can keep creating new ones — modern browsers clean up detached elements
+            var audio = parentDoc.getElementById('{element_id}'); 
             
             if (!audio) {{
                 audio = parentDoc.createElement('audio');
-                audio.id = '{unique_id}';
+                audio.id = '{element_id}';
                 audio.style.display = 'none';
                 parentDoc.body.appendChild(audio);
             }}
             
             audio.src = 'data:audio/mpeg;base64,{audio_data}';
             audio.currentTime = 0;
+            
             audio.play().catch(e => {{
-                console.log("Play failed:", e);
-                // Optional: fallback to wait for user interaction
+                console.log("Autoplay blocked, waiting for interaction:", e);
                 parentDoc.addEventListener('click', () => audio.play(), {{once: true}});
             }});
         </script>
     """, height=0, width=0)
 
+def queue_audio(text):
+    """Adds text to the queue to be played by the Global Speaker at the end of the script."""
+    if text:
+        st.session_state.audio_queue = text
 
 #overlaying button and audio
 if not st.session_state.unlocked:
     welcome_text = "Text to Audio Input Converter. Type any text and let others hear what you have to say. "
-    audio_data = speak_audio(welcome_text)
-    
-    if audio_data:
-        play_audio(audio_data, base_id="welcome")
 
     st.markdown("""
         <style>
@@ -96,6 +92,7 @@ if not st.session_state.unlocked:
     """, unsafe_allow_html=True)
 
     if st.button(" ", key="gate_button", help="Click anywhere to unlock"):
+        queue_audio(welcome_text)
         st.session_state.unlocked = True
         st.rerun()
 
@@ -117,7 +114,7 @@ if st.button("← Back to Home"):
 st.markdown("""
     <style>
     h1 { 
-        font-size: 5vw !important; 
+        font-size: 6vw !important; 
         text-align: center !important; 
     }
             
@@ -209,17 +206,18 @@ if st.button("Speak", type="primary"):
         with st.spinner("Generating speech..."):
             audio_data = speak_audio(user_text)
             if audio_data:
-                play_audio(audio_data, base_id="text")
+                play_audio(audio_data, "text-id")
     else:
         warning = "Please entire some text to convert to speech"
         st.warning(warning)
         audio_data = speak_audio(warning)
         if audio_data:
-            play_audio(audio_data, base_id="warning")
+            play_audio(audio_data, "warning-id")
 
 
 #unlocked
-if st.session_state.unlocked:
+@st.fragment
+def process_audio():
     audio_file = st.audio_input("", key=f"voice_{st.session_state.input_key}")
 
     if audio_file:
@@ -230,10 +228,10 @@ if st.session_state.unlocked:
             cmd = result['text'].lower().strip()
             
             nav_map = {
-                "home": "/",
-                "hompage": "/",
-                "visionary": "/",
-                "main page": "/",
+                "home": "home/app.py",
+                "hompage": "home/app.py",
+                "visionary": "home/app.py",
+                "main page": "home/app.py",
                 "city": "pages/detector.py", 
                 "surrounding": "pages/detector.py", 
                 "surrounding detector": "pages/detector.py",
@@ -254,7 +252,7 @@ if st.session_state.unlocked:
                 "text to audio input converter": "pages/input.py"
             }
 
-            play_keywords = ["speak", "say", "talk", "read this", "speak this"]
+            play_keywords = ["speak", "say", "talk", "read this", "speak this", "read"]
 
             #playing text
             if any(keyword in cmd for keyword in play_keywords):
@@ -262,9 +260,9 @@ if st.session_state.unlocked:
                     spoken_text = cmd.replace(keyword, "").strip()
 
                 if spoken_text:
-                    audio_data = speak_audio(user_text)
-                    if audio_data:
-                        play_audio(audio_data, base_id="voice")
+                    queue_audio(user_text)
+                    st.session_state.input_key += 1
+                    st.rerun()
 
             #finding url for navigating to page
             found_page = None
@@ -289,4 +287,12 @@ if st.session_state.unlocked:
                 st.session_state.input_key += 1
                 st.rerun()
 
-            
+if st.session_state.unlocked:
+    process_audio()               
+
+if st.session_state.audio_queue:
+    audio_data = speak_audio(st.session_state.audio_queue)
+    if audio_data:
+        play_audio(audio_data, f"play-{int(time.time())}")
+    # Wipe the queue immediately so it can never play again by accident
+    st.session_state.audio_queue = None
