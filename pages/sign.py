@@ -25,7 +25,7 @@ st.set_page_config(
 
 #all session states
 if 'whisper_model' not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("base")
+    st.session_state.whisper_model = whisper.load_model("tiny")
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
 if "input_key" not in st.session_state:
@@ -82,10 +82,6 @@ def queue_audio(text):
 #overlaying button and welcome audio
 if not st.session_state.unlocked:
     welcome_text = "Sign Language Translator. This feature requires camera access for real-time translating. Allow camera access to translate Sign Language and communicate with everyone. Click the red start button to begin translation."
-    audio_data = speak_audio(welcome_text)
-    
-    if audio_data:
-        play_audio(audio_data, "welcome-id")
 
     st.markdown("""
         <style>
@@ -104,6 +100,7 @@ if not st.session_state.unlocked:
     """, unsafe_allow_html=True)
 
     if st.button(" ", key="gate_button", help="Click anywhere to unlock"):
+        queue_audio(welcome_text)
         st.session_state.unlocked = True
         st.rerun()
 
@@ -122,7 +119,7 @@ st.markdown(page_bg_gradient, unsafe_allow_html=True)
 st.markdown("""
     <style>
     h1 { 
-        font-size: 5vw !important; 
+        font-size: 6vw !important; 
         text-align: center !important; 
     }
             
@@ -369,10 +366,10 @@ def process_audio():
             cmd = result['text'].lower().strip()
             
             nav_map = {
-                "home": "/",
-                "hompage": "/",
-                "visionary": "/",
-                "main page": "/",
+                "home": "home/app.py",
+                "hompage": "home/app.py",
+                "visionary": "home/app.py",
+                "main page": "home/app.py",
                 "city": "pages/detector.py", 
                 "surrounding": "pages/detector.py", 
                 "surrounding detector": "pages/detector.py",
@@ -398,7 +395,7 @@ def process_audio():
             stop_keywords = ["stop", "off", "end", "stop camera", "turn off"]
 
             #button keywords            
-            detect_keywords = ["detect", "capture", "what do you see", "what sign", "read sign"]
+            detect_keywords = ["detect", "capture", "what do you see", "what sign", "read sign", "what's the sign"]
             add_keywords = ["add", "append", "insert"]
             delete_keywords = ["delete", "remove", "backspace", "undo"]
             read_keywords = ["read aloud", "read sentence", "speak sentence", "read text", "read", "speak"]
