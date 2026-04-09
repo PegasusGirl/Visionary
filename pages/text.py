@@ -6,11 +6,14 @@ import numpy as np # pyright: ignore[reportMissingImports]
 from PIL import Image # pyright: ignore[reportMissingImports]
 import io
 from gtts import gTTS # pyright: ignore[reportMissingImports] 
-from streamlit_back_camera_input import back_camera_input # pyright: ignore[reportMissingImports]
 import base64
 import whisper
 import streamlit.components.v1 as components
 import time
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
+import av
+import threading
+import cv2
 
 
 
@@ -23,7 +26,7 @@ st.set_page_config(
 
 #all session states
 if 'whisper_model' not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("base")
+    st.session_state.whisper_model = whisper.load_model("tiny")
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
 if "input_key" not in st.session_state:
@@ -32,6 +35,9 @@ if "camera_running" not in st.session_state:
     st.session_state.camera_running = False
 if "audio_queue" not in st.session_state:
     st.session_state.audio_queue = None
+if 'last_captured' not in st.session_state:
+    st.session_state.last_captured = None
+
 
 #automatic audios
 @st.cache_data
@@ -77,11 +83,7 @@ def queue_audio(text):
 
 #overlaying buton and welcome audio
 if not st.session_state.unlocked:
-    welcome_text = "OCR Text to Speech Recognition. This feature requires camera access for real-time detection. Allow camera access and let the AI see the text for you. Click the camera to start detection."
-    audio_data = speak_audio(welcome_text)
-    
-    if audio_data:
-        play_audio(audio_data, "welcome-id")
+    welcome_text = "OCR Text to Speech Recognition. This feature requires camera access for real-time detection. Allow camera access and let the AI see the text for you. Click the red Start button to begin detection."
 
     st.markdown("""
         <style>
@@ -100,6 +102,7 @@ if not st.session_state.unlocked:
     """, unsafe_allow_html=True)
 
     if st.button(" ", key="gate_button", help="Click anywhere to unlock"):
+        queue_audio(welcome_text)
         st.session_state.unlocked = True
         st.rerun()
 
@@ -122,7 +125,7 @@ if st.button("← Back to Home"):
 st.markdown("""
     <style>
     h1 {
-        font-size: 5vw !important;
+        font-size: 6vw !important;
         text-align: center !important;
     }
     .access {
@@ -213,48 +216,89 @@ def load_reader():
 
 reader = load_reader()
 
+class OCRVideoProcessor(VideoProcessorBase):
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.latest_frame = None
 
-#back camera
-captured_file = back_camera_input()
-
-def perform_capture_and_read():
-    if captured_file:
-        img = Image.open(captured_file)
-        snap = np.array(img)
+    def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
+        img = frame.to_ndarray(format="bgr24")
         
-        results = reader.readtext(snap, paragraph=True, y_ths=-0.1, x_ths=10.0)
-        
-        if len(results) > 0:
-            st.success(f"Detected {len(results)} Line(s):")
+        # We lock the frame and save a copy for the OCR to grab later
+        with self._lock:
+            self.latest_frame = img.copy()
             
-            full_text_list = []
-            for res in results:
-                line_text = res[1]
-                full_text_list.append(line_text)
-            
-            #combined with pauses
-            combined_text = " . ".join(full_text_list)
-            return combined_text
+        return av.VideoFrame.from_ndarray(img, format="bgr24")
+    
+# Place this where you want the camera to appear in your UI
+webrtc_ctx = webrtc_streamer(
+    key="ocr-live-stream",
+    video_processor_factory=OCRVideoProcessor,
+    async_processing=True,
+    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+    media_stream_constraints={
+        "video": {"facingMode": "environment"}, # FORCES BACK CAMERA
+        "audio": False
+    },
+    desired_playing_state=st.session_state.get("camera_running", False),
+)
 
-        else:
-            audio_data = speak_audio("No text detected. Please try again.")
-            if audio_data:
-                play_audio(audio_data, "no-id")
-    else:
-        audio_data = speak_audio("Camera not ready. Tap the camera to intialize recognition")
-        if audio_data:
-            play_audio(audio_data, "camera-id")
-
-
-#separate button for scanning text
-if st.button("🔍 Scan Text", type="primary", use_container_width=True):
-    text_to_speak = perform_capture_and_read()
-    if text_to_speak:
-        queue_audio(text_to_speak)
+if st.session_state.camera_running:
+    if st.button("🛑 STOP", type="primary", use_container_width=True):
+        st.session_state.camera_running = False
+        st.rerun()
+else:
+    if st.button("🟢 START", type="primary", use_container_width=True):
+        st.session_state.camera_running = True
         st.rerun()
 
+def perform_capture_and_read(image_file):
+    if image_file is None:
+        return "No image captured. Please take a photo first."
+    
+    try:
+        # Convert BGR (Live Stream format) to RGB (EasyOCR format)
+        img_rgb = cv2.cvtColor(image_file, cv2.COLOR_BGR2RGB)
+        
+        # Perform OCR directly on the pixels
+        results = reader.readtext(img_rgb, paragraph=True)
+        
+        if results:
+            full_text_list = [res[1] for res in results]
+            combined_text = " . ".join(full_text_list)
+            return combined_text
+        else:
+            return "No text detected. Try holding the phone steadier."
+            
+    except Exception as e:
+        return f"Error processing video frame: {str(e)}"
+    
+
+#separate button for scanning text
+if st.session_state.camera_running:
+    if st.button("📸 Capture & Read", type="primary", use_container_width=True):
+        if webrtc_ctx.video_processor:
+            with webrtc_ctx.video_processor._lock:
+                # Quickly grab the image and get OUT of the lock
+                snap = webrtc_ctx.video_processor.latest_frame.copy() 
+            
+            # Show a placeholder so the user knows it's working
+            placeholder = st.empty()
+            placeholder.info("⌛ AI is reading the text... please hold.")
+            
+            # Run the heavy OCR
+            text_result = perform_capture_and_read(snap)
+            
+            # Save to session state so it survives the audio rerun
+            st.session_state.last_ocr_text = text_result
+            queue_audio(text_result)
+            
+            placeholder.empty() # Remove the "Reading" message
+            st.rerun()
+
 #unlocked state for voice-activ.
-if st.session_state.unlocked:
+@st.fragment
+def process_audio():
     audio_file = st.audio_input("", key=f"voice_{st.session_state.input_key}")
 
     if audio_file:
@@ -265,10 +309,10 @@ if st.session_state.unlocked:
             cmd = result['text'].lower().strip()
             
             nav_map = {
-                "home": "/",
-                "hompage": "/",
-                "visionary": "/",
-                "main page": "/",
+                "home": "home/app.py",
+                "hompage": "home/app.py",
+                "visionary": "home/app.py",
+                "main page": "home/app.py",
                "city": "pages/detector.py", 
                 "surrounding": "pages/detector.py", 
                 "surrounding detector": "pages/detector.py",
@@ -291,16 +335,36 @@ if st.session_state.unlocked:
 
             detect_keywords = ["detect", "capture", "read", "what do you see", "see"]
             
-            is_detecting = False
+            start_keywords = ["start", "begin", "camera on", "turn on", "activate"]
+            stop_keywords = ["stop", "off", "end", "stop camera", "turn off"]
+
+            if any(kw in cmd for kw in start_keywords):
+                st.session_state.camera_running = True
+                st.session_state.input_key += 1
+                st.rerun()
+
+            elif any(kw in cmd for kw in stop_keywords):
+                st.session_state.camera_running = False
+                st.session_state.input_key += 1
+                st.rerun()
 
             if any(kw in cmd for kw in detect_keywords):
-                if captured_file:
-                    full_text = perform_capture_and_read()
-                    queue_audio(full_text)
-                    st.session_state.input_key +=1
-                    st.rerun()
+                if webrtc_ctx.video_processor:
+                    with webrtc_ctx.video_processor._lock:
+                        img_snapshot = webrtc_ctx.video_processor.latest_frame
+                    
+                    if img_snapshot is not None:
+                        # Use the new array-based function
+                        text_to_speak = perform_capture_and_read(img_snapshot)
+                        queue_audio(text_to_speak)
+                        st.session_state.input_key += 1
+                        st.rerun()
+                    else:
+                        queue_audio("Camera is starting, please try again in a second.")
+                        st.rerun()
                 else:
-                    st.warning("Tap the camera to inititate detection")
+                    queue_audio("Please start the camera first by saying 'Start Camera' or clicking the green button.")
+                    st.rerun()
 
             #finding url for navigating to page
             found_page = None
@@ -328,6 +392,10 @@ if st.session_state.unlocked:
             #prevent rerun to play audio
         st.session_state.input_key += 1
         st.rerun()
+
+#voice-commands when unlocked
+if st.session_state.unlocked:
+    process_audio()
 
 if st.session_state.audio_queue:
     audio_data = speak_audio(st.session_state.audio_queue)
