@@ -26,7 +26,7 @@ st.set_page_config(
 
 #intializing all session states
 if 'whisper_model' not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("base")
+    st.session_state.whisper_model = whisper.load_model("tiny")
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
 if "input_key" not in st.session_state:
@@ -99,13 +99,11 @@ def format_detection_sentence(items):
     else:
         return f"I see {', '.join(parts[:-1])} and {parts[-1]}."
 
+    
+
 #overlaying button to unlock audio
 if not st.session_state.unlocked:
     welcome_text = "Surrounding Detector. This feature requires camera access for real-time detection. Allow camera access and let the AI see for you! Click the red start button to begin detection"
-    audio_data = speak_audio(welcome_text)
-    
-    if audio_data:
-        play_audio(audio_data, "welcome-id")
 
     #styling overlaying button
     st.markdown("""
@@ -126,6 +124,7 @@ if not st.session_state.unlocked:
 
     #actual overlaying button
     if st.button(" ", key="gate_button", help="Click anywhere to unlock"):
+        queue_audio(welcome_text)
         st.session_state.unlocked = True
         st.rerun()
 
@@ -147,7 +146,7 @@ if st.button("← Back to Home"):
 st.markdown("""
     <style>
     h1 {
-        font-size: 5vw !important;
+        font-size: 6vw !important;
         text-align: center !important;
     }
     .access {
@@ -323,6 +322,17 @@ if "last_detected_sentence" in st.session_state:
     st.subheader("Detected:")
     st.write(f"🔍 {st.session_state.last_detected_sentence}")
 
+if st.button("🗑️ Clear", type="secondary"):
+    # Reset the variables holding the text
+    st.session_state.last_detected = []
+    if "last_detected_sentence" in st.session_state:
+        del st.session_state.last_detected_sentence
+    
+    # Optional: Clear the audio queue so it doesn't read the old text again
+    st.session_state.audio_queue = None
+    
+    st.rerun()
+
 @st.fragment
 def process_audio():
     audio_file = st.audio_input("", key=f"voice_{st.session_state.input_key}")
@@ -335,10 +345,10 @@ def process_audio():
             cmd = result['text'].lower().strip()
             
             nav_map = {
-                "home": "/",
-                "hompage": "/",
-                "visionary": "/",
-                "main page": "/",
+                "home": "home/app.py",
+                "hompage": "home/app.py",
+                "visionary": "home/app.py",
+                "main page": "home/app.py",
                 "city": "pages/detector.py", 
                 "surrounding": "pages/detector.py", 
                 "surrounding detector": "pages/detector.py",
@@ -363,7 +373,10 @@ def process_audio():
             start_keywords = ["start", "begin", "camera on", "turn on", "activate"]
             stop_keywords = ["stop", "off", "end", "stop camera", "turn off"]
             detect_keywords = ["detect", "capture", "read", "what do you see", "see"]
-            
+            clear_keywords = [
+                "clear", "clear all", "delete", "delete all", "reset", 
+                "clear everything", "new session", "start over", "erase"
+            ]
 
             if any(kw in cmd for kw in start_keywords):
                 st.session_state.camera_running = True
@@ -386,6 +399,24 @@ def process_audio():
                     st.rerun()
                 else:
                     st.warning("Turn on camera first.")
+
+            #deleting
+            if any(kw in cmd for kw in clear_keywords):
+                st.session_state.last_detected = []
+                del st.session_state.last_detected
+                queue_audio("Deleted text.")
+                st.session_state.input_key += 1
+                st.rerun()
+
+            #relocking system
+            if "lock" in cmd or "re-lock" in cmd or "relock" in cmd:
+                audio_data = speak_audio("System Relocked")
+                if audio_data:
+                    play_audio(audio_data, "lock-id")
+                time.sleep(1.5)
+                st.session_state.unlocked = False
+                st.session_state.input_key += 1
+                st.rerun()
 
             #finding url for navigating to page
             found_page = None
