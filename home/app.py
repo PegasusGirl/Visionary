@@ -20,11 +20,14 @@ st.set_page_config(
 
 #intializing all session states
 if 'whisper_model' not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("base")
+    st.session_state.whisper_model = whisper.load_model("tiny")
 if 'input_key' not in st.session_state:
     st.session_state.input_key = 0
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
+if "audio_queue" not in st.session_state:
+    st.session_state.audio_queue = None
+
 
 
 #setting up the audios for automatic voice
@@ -63,14 +66,16 @@ def play_audio(audio_data, element_id="visionary-audio"):
         </script>
     """, height=0, width=0)
 
+def queue_audio(text):
+    """Adds text to the queue to be played by the Global Speaker at the end of the script."""
+    if text:
+        st.session_state.audio_queue = text
+
+audio_placeholder = st.empty()
 
 #overlaying button to unlock audio
 if not st.session_state.unlocked:
-    welcome_text = "Welcome To Visionary. See Beyond. Hear Beyond"
-    audio_data = speak_audio(welcome_text)
-    
-    if audio_data:
-        play_audio(audio_data, "welcome-id")
+
     #styling overlaying button
     st.markdown("""
         <style>
@@ -93,7 +98,8 @@ if not st.session_state.unlocked:
 
     #actual overlaying button
     if st.button(" ", key="gate_button", help="Click anywhere to unlock"):
-        st.session_state.unlocked = True
+        queue_audio("Welcome to Visionary. See Beyond. Hear Beyond.")
+        st.session_state.unlocked = True 
         st.rerun()
 
 
@@ -408,4 +414,9 @@ if st.session_state.unlocked:
                 #native command
                 st.switch_page(found_page)
 
-
+if st.session_state.audio_queue:
+    audio_data = speak_audio(st.session_state.audio_queue)
+    if audio_data:
+        play_audio(audio_data, f"play-{int(time.time())}")
+    # Wipe the queue immediately so it can never play again by accident
+    st.session_state.audio_queue = None
