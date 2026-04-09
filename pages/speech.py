@@ -33,6 +33,8 @@ if "last_detected" not in st.session_state:
     st.session_state.last_detected = []
 if 'history' not in st.session_state:
     st.session_state.history = []
+if "audio_queue" not in st.session_state:
+    st.session_state.audio_queue = None
 
 
 #intitate all audios
@@ -71,14 +73,14 @@ def play_audio(audio_data, element_id="visionary-audio"):
         </script>
     """, height=0, width=0)
 
+def queue_audio(text):
+    """Adds text to the queue to be played by the Global Speaker at the end of the script."""
+    if text:
+        st.session_state.audio_queue = text
 
 #overlaying button and welcome audio
 if not st.session_state.unlocked:
     welcome_text = "Speech to Text Transcription. This feature requires audio access for transcription. Allow audio access and hear what others say!"
-    audio_data = speak_audio(welcome_text)
-    
-    if audio_data:
-        play_audio(audio_data, "welcome-id")
 
     st.markdown("""
         <style>
@@ -97,6 +99,7 @@ if not st.session_state.unlocked:
     """, unsafe_allow_html=True)
 
     if st.button(" ", key="gate_button", help="Click anywhere to unlock"):
+        queue_audio(welcome_text)
         st.session_state.unlocked = True
         st.rerun()
 
@@ -120,7 +123,7 @@ if st.button("← Back to Home"):
 st.markdown("""
     <style>
     h1 {
-        font-size: 5vw !important;
+        font-size: 6vw !important;
         text-align: center !important;
     }
     .access {
@@ -162,11 +165,11 @@ st.markdown("""
         
         background-color: white !important;
         border-radius: 100px !important;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2) !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
         border: 1px solid #f0f0f0 !important;
         
 
-        width: 400px !important;
+        width: 375px !important;
         height: 85px !important;
         z-index: 999999 !important;
         
@@ -197,20 +200,31 @@ st.markdown("""
         margin: 0 !important; /* Ensures it stays left */
     }
 
-    div[class*="st-key-voice_"] [data-testid="stAudioInput"] span {
-        color: #333 !important;
-        font-weight: 600 !important;
-        margin-left: 20px !important;
-    }
-
-
     [data-testid="stAudioInput"] label { 
             display: none !important;
     }
+            
     [data-testid="stAudioInput"] svg { 
         fill: white !important; 
         transform: scale(1.5) !important; 
     }
+            
+    @media (max-width: 480px) {
+        div[class*="st-key-voice_"] [data-testid="stAudioInput"] {
+            position: fixed !important;
+            bottom: 30px !important; 
+            left: 50% !important;
+            
+            background-color: white !important;
+            border-radius: 100px !important;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2) !important;
+            border: 1px solid #f0f0f0 !important;
+            
+            width: 200px !important;
+            height: 85px !important;
+            z-index: 999999 !important;
+        }
+    }      
     </style>
 """, unsafe_allow_html=True)
 
@@ -266,36 +280,13 @@ st.markdown("""
 
 
 #recording buttons
-col1, col2, col3 = st.columns([2, 2, 1])
+
+with st.container(key="transcription-container"):
+    transcription_file = st.audio_input("", key=f"audio_{st.session_state.transcription}")
+
+col1, col2 = st.columns([2, 2])
 
 with col1:
-    with st.container(key="transcription-container"):
-        transcription_file = st.audio_input("", key=f"audio_{st.session_state.transcription}")
-
-
-#display
-st.markdown("### 📝 Live Transcription")
-transcription_container = st.container()
-
-if transcription_file:
-    with st.spinner("Transcribing..."):
-        audio_bytes = transcription_file.read()
-        audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
-        
-        result = st.session_state.whisper_model.transcribe(audio_np, fp16=False)
-        
-        st.session_state.history.append(result['text'])
-        
-        #increase key and rerun (restarts microp.)
-        st.session_state.transcription += 1
-        st.rerun()
-
-
-
-for text in st.session_state.history:
-    st.markdown(f'<p class="text">{text}</p>', unsafe_allow_html=True)
-
-with col2:
     if st.session_state.history:
         if st.button("🗑️ Clear All", use_container_width=True):
             #reset history list
@@ -307,7 +298,7 @@ with col2:
     else:
         st.button("🗑️ Clear All", disabled=True, use_container_width=True)
 
-with col3:
+with col2:
     if st.session_state.history:
         #preparing file data
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -334,6 +325,28 @@ with col3:
         )
     else:
         st.button("💾 Save", disabled=True, use_container_width=True)
+
+#display
+st.markdown("### 📝 Live Transcription")
+transcription_container = st.container()
+
+if transcription_file:
+    with st.spinner("Transcribing..."):
+        audio_bytes = transcription_file.read()
+        audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+        
+        result = st.session_state.whisper_model.transcribe(audio_np, fp16=False)
+        
+        st.session_state.history.append(result['text'])
+        
+        #increase key and rerun (restarts microp.)
+        st.session_state.transcription += 1
+        st.rerun()
+
+
+for text in st.session_state.history:
+    st.markdown(f'<p class="text">{text}</p>', unsafe_allow_html=True)
+
 
 def perform_capture_and_read(text_to_read):
     if text_to_read:
@@ -362,10 +375,10 @@ def process_audio():
             cmd = result['text'].lower().strip()
             
             nav_map = {
-                "home": "/",
-                "hompage": "/",
-                "visionary": "/",
-                "main page": "/",
+                "home": "home/app.py",
+                "hompage": "home/app.py",
+                "visionary": "home/app.py",
+                "main page": "home/app.py",
                 "city": "pages/detector.py", 
                 "surrounding": "pages/detector.py", 
                 "surrounding detector": "pages/detector.py",
@@ -431,4 +444,9 @@ def process_audio():
 if st.session_state.unlocked:
     process_audio()
 
-
+if st.session_state.audio_queue:
+    audio_data = speak_audio(st.session_state.audio_queue)
+    if audio_data:
+        play_audio(audio_data, f"play-{int(time.time())}")
+    # Wipe the queue immediately so it can never play again by accident
+    st.session_state.audio_queue = None
