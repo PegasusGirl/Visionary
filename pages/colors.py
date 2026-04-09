@@ -24,7 +24,7 @@ st.set_page_config(
 
 #all session states
 if 'whisper_model' not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("base")
+    st.session_state.whisper_model = whisper.load_model("tiny")
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
 if "input_key" not in st.session_state:
@@ -39,6 +39,8 @@ if "requested_intensity" not in st.session_state:
     st.session_state.requested_intensity = None
 if "filter_intensity" not in st.session_state:
     st.session_state.filter_intensity = 1.0
+if "audio_queue" not in st.session_state:
+    st.session_state.audio_queue = None
 
 #all audios
 @st.cache_data
@@ -76,15 +78,14 @@ def play_audio(audio_data, element_id="visionary-audio"):
         </script>
     """, height=0, width=0)
 
-
+def queue_audio(text):
+    """Adds text to the queue to be played by the Global Speaker at the end of the script."""
+    if text:
+        st.session_state.audio_queue = text
 
 #overlaying button and audio
 if not st.session_state.unlocked:
     welcome_text = "Color Vision Assistance. This feature requires camera access for real-time color filtering. Allow camera access and see the world with color. Click the red start button to begin filtering."
-    audio_data = speak_audio(welcome_text)
-    
-    if audio_data:
-        play_audio(audio_data, "welcome-id")
 
     #styling button
     st.markdown("""
@@ -104,6 +105,7 @@ if not st.session_state.unlocked:
     """, unsafe_allow_html=True)
 
     if st.button(" ", key="gate_button", help="Click anywhere to unlock"):
+        queue_audio(welcome_text)
         st.session_state.unlocked = True
         st.rerun()
 
@@ -126,7 +128,7 @@ if st.button("← Back to Home"):
 st.markdown("""
     <style>
     h1 {
-        font-size: 5vw !important;
+        font-size: 6vw !important;
         text-align: center !important;
     }
     .access {
@@ -486,10 +488,10 @@ if st.session_state.unlocked:
             cmd = result['text'].lower().strip()
             
             nav_map = {
-                "home": "/",
-                "hompage": "/",
-                "visionary": "/",
-                "main page": "/",
+                "home": "home/app.py",
+                "hompage": "home/app.py",
+                "visionary": "home/app.py",
+                "main page": "home/app.py",
                 "city": "pages/detector.py", 
                 "surrounding": "pages/detector.py", 
                 "surrounding detector": "pages/detector.py",
@@ -551,9 +553,7 @@ if st.session_state.unlocked:
                             webrtc_ctx.video_transformer.intensity = (
                                 st.session_state.requested_intensity
                                 if st.session_state.requested_intensity is not None
-                                else st.session_state.filter_intensity
-                            )
-
+                                else st.session_state.filter_intensity)
                     st.session_state.input_key += 1
                     st.rerun()
                     break
@@ -582,5 +582,11 @@ if st.session_state.unlocked:
                 st.session_state.input_key += 1
                 st.rerun()
 
+if st.session_state.audio_queue:
+    audio_data = speak_audio(st.session_state.audio_queue)
+    if audio_data:
+        play_audio(audio_data, f"play-{int(time.time())}")
+    # Wipe the queue immediately so it can never play again by accident
+    st.session_state.audio_queue = None
 
 
