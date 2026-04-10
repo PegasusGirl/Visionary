@@ -274,7 +274,7 @@ class ASLProcessor(VideoProcessorBase):
                     pass 
             else:
                 with self.lock:
-                    self.last_prediction = "No Hand"
+                    self.last_prediction= "No Hand"
 
         cv2.rectangle(img, (0, 0), (320, 60), (0, 0, 0), -1)
         with self.lock:
@@ -313,7 +313,7 @@ c1, c2, c3 = st.columns(3)
 
 with c1:
     #adding word/letter
-    if st.button("➕ Add Word", use_container_width=True):
+    if st.button("➕ Insert Word", use_container_width=True):
         if ctx.video_processor:
             with ctx.video_processor.lock:
                 word = ctx.video_processor.last_prediction
@@ -423,18 +423,6 @@ def process_audio():
                 st.session_state.input_key += 1
                 st.rerun()
 
-            #adding
-            elif any(kw in cmd for kw in add_keywords):
-                command_executed = True
-                if st.session_state.camera_running and ctx.video_processor:
-                    with ctx.video_processor.lock:
-                        word = ctx.video_processor.last_prediction
-                    if word not in ["No Hand", "Waiting..."]:
-                        st.session_state.sentence.append(word) # THIS updates the data
-                        queue_audio(f"Added {word}")
-                st.session_state.input_key += 1
-                st.rerun()
-
             #deleting
             elif any(kw in cmd for kw in delete_keywords):
                 command_executed = True
@@ -458,6 +446,28 @@ def process_audio():
                 full_sentence = " ".join(st.session_state.sentence)
                 queue_audio(full_sentence if full_sentence else "Nothing to read.")
                 skip_rerun = True
+                st.session_state.input_key += 1
+                st.rerun()
+
+            #adding
+            if any(kw in cmd for kw in add_keywords):
+                command_executed = True
+                if st.session_state.camera_running and ctx.video_processor:
+                    with ctx.video_processor.lock:
+                        word = ctx.video_processor.last_prediction
+                    if word not in ["No Hand", "Waiting..."]:
+                        st.session_state.sentence.append(word)
+                        queue_audio(f"Added {word}")
+                        st.session_state.input_key += 1
+                        st.rerun()
+
+            #relocking system
+            if "lock" in cmd or "re-lock" in cmd or "relock" in cmd:
+                audio_data = speak_audio("System Relocked")
+                if audio_data:
+                    play_audio(audio_data, "lock-id")
+                time.sleep(1.5)
+                st.session_state.unlocked = False
                 st.session_state.input_key += 1
                 st.rerun()
 
@@ -485,16 +495,6 @@ def process_audio():
                 else:
                     st.session_state.input_key += 1
                     st.rerun(scope="fragment")
-
-            #relocking system
-            if "lock" in cmd or "re-lock" in cmd or "relock" in cmd:
-                audio_data = speak_audio("System Relocked")
-                if audio_data:
-                    play_audio(audio_data, "lock-id")
-                time.sleep(1.5)
-                st.session_state.unlocked = False
-                st.session_state.input_key += 1
-                st.rerun()
 
 
 if st.session_state.unlocked:
