@@ -23,12 +23,11 @@ if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
 if "input_key" not in st.session_state:
     st.session_state.input_key = 0
-if "speech_placeholder" not in st.session_state:
-    st.session_state.speech_placeholder = None
 if "speak_count" not in st.session_state:
     st.session_state.speak_count = 0
 if "audio_queue" not in st.session_state:
     st.session_state.audio_queue = None
+
 
 #audios
 @st.cache_data
@@ -139,7 +138,7 @@ st.markdown("""
         left: 50%;
         transform: translateX(-50%);
         width: 50% !important;
-        max-width: 400px;
+        max-width: 375px;
         z-index: 10001;
         background: white !important;
         border-radius: 50px !important;
@@ -198,21 +197,19 @@ st.markdown("<p class='info'>Type any text and let others hear what you have to 
 #what user types
 user_text = st.text_area("Enter your message here:")
 
-#placeholder
-speech_area = st.empty()
 
-if st.button("Speak", type="primary"):
+if st.button("🔊Speak", type="primary"):
     if user_text:
         with st.spinner("Generating speech..."):
-            audio_data = speak_audio(user_text)
-            if audio_data:
-                play_audio(audio_data, "text-id")
+            queue_audio(user_text)
     else:
-        warning = "Please entire some text to convert to speech"
+        warning = "Please enter some text to speak"
         st.warning(warning)
-        audio_data = speak_audio(warning)
-        if audio_data:
-            play_audio(audio_data, "warning-id")
+        queue_audio(warning)
+
+if st.session_state.get("temp_warning"):
+    st.warning(st.session_state.temp_warning)
+    st.session_state.temp_warning = None
 
 
 #unlocked
@@ -239,7 +236,7 @@ def process_audio():
                 "color": "pages/colors.py", 
                 "color vision assist": "pages/colors.py",
                 "speaker": "pages/text.py", 
-                "text to speech": "pages/text.py", 
+                "text to speech": "pages/text.py",
                 "speech": "pages/speech.py", 
                 "speech to text": "pages/speech.py", 
                 "transcription": "pages/speech.py",
@@ -256,13 +253,14 @@ def process_audio():
 
             #playing text
             if any(keyword in cmd for keyword in play_keywords):
-                for keyword in play_keywords:
-                    spoken_text = cmd.replace(keyword, "").strip()
-
-                if spoken_text:
+                if user_text:
                     queue_audio(user_text)
-                    st.session_state.input_key += 1
-                    st.rerun()
+                else:
+                    st.session_state.temp_warning = "Please enter some text to speak"
+                    queue_audio("Please enter some text to speak")
+                st.session_state.input_key += 1
+                st.rerun()
+
 
             #finding url for navigating to page
             found_page = None
