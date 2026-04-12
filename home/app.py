@@ -71,7 +71,6 @@ def queue_audio(text):
     if text:
         st.session_state.audio_queue = text
 
-audio_placeholder = st.empty()
 
 #overlaying button to unlock audio
 if not st.session_state.unlocked:
@@ -144,7 +143,7 @@ st.markdown("""
             left: 50%;
             transform: translateX(-50%);
             width: 50% !important;
-            max-width: 400px;
+            max-width: 375px;
             z-index: 10001;
             background: white !important;
             border-radius: 50px !important;
@@ -284,7 +283,6 @@ st.markdown("""
 def get_base64_of_bin_file(bin_file):
     """reads a binary file and returns its base64 encoded string."""
     try:
-        # NOTE: This part assumes you have local image files like "city.png"
         with open(bin_file, 'rb') as f:
             data = f.read()
         return base64.b64encode(data).decode()
@@ -396,7 +394,7 @@ if st.session_state.unlocked:
                 audio_data = speak_audio("System Relocked")
                 if audio_data:
                     play_audio(audio_data, "lock-id")
-                time.sleep(1.5)
+                time.sleep(1.5)  
                 st.session_state.unlocked = False
                 st.session_state.input_key += 1
                 st.rerun()
