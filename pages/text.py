@@ -26,7 +26,7 @@ st.set_page_config(
 
 #all session states
 if 'whisper_model' not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("tiny")
+    st.session_state.whisper_model = whisper.load_model("base")
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
 if "input_key" not in st.session_state:
@@ -35,8 +35,6 @@ if "camera_running" not in st.session_state:
     st.session_state.camera_running = False
 if "audio_queue" not in st.session_state:
     st.session_state.audio_queue = None
-if 'last_captured' not in st.session_state:
-    st.session_state.last_captured = None
 
 
 #automatic audios
@@ -153,7 +151,7 @@ st.markdown("""
         left: 50%;
         transform: translateX(-50%);
         width: 50% !important;
-        max-width: 400px;
+        max-width: 375px;
         z-index: 10001;
         background: white !important;
         border-radius: 50px !important;
@@ -199,6 +197,11 @@ st.markdown("""
     }    
     [data-testid="stAudioInput"] label {
         display: none !important;
+    }
+            
+    .text {
+        font-size: 20px !important; 
+        margin-left: 5px !important;
     }
         
     </style>
@@ -279,7 +282,6 @@ if st.session_state.camera_running:
     if st.button("📸 Capture & Read", type="primary", use_container_width=True):
         if webrtc_ctx.video_processor:
             with webrtc_ctx.video_processor._lock:
-                # Quickly grab the image and get OUT of the lock
                 snap = webrtc_ctx.video_processor.latest_frame.copy() 
             
             # Show a placeholder so the user knows it's working
@@ -290,11 +292,29 @@ if st.session_state.camera_running:
             text_result = perform_capture_and_read(snap)
             
             # Save to session state so it survives the audio rerun
-            st.session_state.last_ocr_text = text_result
+            st.session_state.last_detected_text = text_result
             queue_audio(text_result)
+
             
             placeholder.empty() # Remove the "Reading" message
             st.rerun()
+else:
+    st.info("Start the camera to begin detection.")
+
+if "last_detected_text" in st.session_state:
+    st.subheader("Detected:")
+    st.markdown(f'<p class="text">{st.session_state.last_detected_text}</p>', unsafe_allow_html=True)
+
+st.write("")
+
+if st.button("🗑️ Clear", type="secondary"):
+    # Reset the variables holding the text
+    if "last_detected_text" in st.session_state:
+        del st.session_state.last_detected_text
+
+    st.session_state.audio_queue = None
+    
+    st.rerun()
 
 #unlocked state for voice-activ.
 @st.fragment
@@ -335,8 +355,12 @@ def process_audio():
 
             detect_keywords = ["detect", "capture", "read", "what do you see", "see"]
             
-            start_keywords = ["start", "begin", "camera on", "turn on", "activate"]
+            start_keywords = ["start", "begin", "camera on", "turn on", "activate", "on"]
             stop_keywords = ["stop", "off", "end", "stop camera", "turn off"]
+
+            clear_keywords = [
+                "clear", "clear all", "delete", "delete all", "reset", 
+                "clear everything", "new session", "start over", "erase", "eat"]
 
             if any(kw in cmd for kw in start_keywords):
                 st.session_state.camera_running = True
@@ -348,6 +372,15 @@ def process_audio():
                 st.session_state.input_key += 1
                 st.rerun()
 
+            #deleting
+            if any(kw in cmd for kw in clear_keywords):
+                if "last_detected_text" in st.session_state:
+                    del st.session_state.last_detected_text
+                queue_audio("Deleted text.")
+                st.session_state.input_key += 1
+                st.rerun()
+
+
             if any(kw in cmd for kw in detect_keywords):
                 if webrtc_ctx.video_processor:
                     with webrtc_ctx.video_processor._lock:
@@ -356,6 +389,7 @@ def process_audio():
                     if img_snapshot is not None:
                         # Use the new array-based function
                         text_to_speak = perform_capture_and_read(img_snapshot)
+                        st.session_state.last_detected_text = text_to_speak
                         queue_audio(text_to_speak)
                         st.session_state.input_key += 1
                         st.rerun()
