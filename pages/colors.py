@@ -261,16 +261,17 @@ def apply_color_correction(img, mode, intensity=1.0):
     elif mode == "Tritanopia (Blue Weak)":
         
         #shift blue tones toward red/magenta
-        blue_mask = np.maximum(0, B - G)
-        R_corr = np.clip(R + (blue_mask * 0.8), 0, 1)
-        G_corr = G
+        blue_mask = np.maximum(0, B - (R*0.5+G*0.3))
+
+        R_corr = np.clip(R + (blue_mask * 1), 0, 1)
+        G_corr = np.clip(G - (blue_mask * 0.6), 0, 1)
         B_corr = B
 
         #shift yellow/orange tones toward cyan/green tones
-        yellow_mask = np.maximum(0, (R + G) / 2 - B)
-        G_corr = np.clip(G_corr + (yellow_mask * 0.3), 0, 1)
-        B_corr = np.clip(B_corr + (yellow_mask * 0.5), 0, 1)
-        R_corr = np.clip(R_corr - (yellow_mask * 0.2), 0, 1)
+        yellow_mask = np.maximum(0, (R*0.6 + G*0.5) - B)
+        G_corr = np.clip(G_corr + (yellow_mask * 0.4), 0, 1)
+        B_corr = np.clip(B_corr + (yellow_mask * 0.6), 0, 1)
+        R_corr = np.clip(R_corr - (yellow_mask * 0.3), 0, 1)
 
         #enhance green tones (luminosity)
         green_mask = np.maximum(0, G - (R + B) / 2)
