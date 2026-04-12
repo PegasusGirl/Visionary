@@ -9,10 +9,8 @@ import io
 import base64
 import streamlit.components.v1 as components
 import time
-import numpy as np
 import whisper
 from gtts import gTTS
-import re
 
 
 #page details
@@ -24,7 +22,7 @@ st.set_page_config(
 
 #all session states
 if 'whisper_model' not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("tiny")
+    st.session_state.whisper_model = whisper.load_model("base")
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
 if "input_key" not in st.session_state:
@@ -156,7 +154,7 @@ st.markdown("""
         left: 50%;
         transform: translateX(-50%);
         width: 50% !important;
-        max-width: 400px;
+        max-width: 375px;
         z-index: 10001;
         background: white !important;
         border-radius: 50px !important;
@@ -473,7 +471,7 @@ st.slider(
 st.warning(f"Current Correction: **{st.session_state.selected_filter}**.")
 
 if not webrtc_ctx.video_transformer:
-    st.info("Click 'START' above to begin the live feed.")
+    st.info("Start the camera to apply filters.")
 
 
 #voice-activ. when unlocked
@@ -512,7 +510,7 @@ if st.session_state.unlocked:
                 "text to audio input converter": "pages/input.py"
             }
 
-            start_keywords = ["start", "begin", "camera on", "turn on", "activate"]
+            start_keywords = ["start", "begin", "camera on", "turn on", "activate", "on"]
             stop_keywords = ["stop", "off", "end", "stop camera", "turn off"]
 
             if any(kw in cmd for kw in start_keywords):
@@ -554,6 +552,8 @@ if st.session_state.unlocked:
                                 st.session_state.requested_intensity
                                 if st.session_state.requested_intensity is not None
                                 else st.session_state.filter_intensity)
+                            
+                    queue_audio(f"Applied {filter_name} filter.")
                     st.session_state.input_key += 1
                     st.rerun()
                     break
