@@ -25,7 +25,7 @@ st.set_page_config(
 
 #all session states
 if 'whisper_model' not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("tiny")
+    st.session_state.whisper_model = whisper.load_model("base")
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
 if "input_key" not in st.session_state:
@@ -160,7 +160,7 @@ st.markdown("""
         left: 50%;
         transform: translateX(-50%);
         width: 50% !important;
-        max-width: 400px;
+        max-width: 375px;
         z-index: 10001;
         background: white !important;
         border-radius: 50px !important;
@@ -322,7 +322,7 @@ with c1:
 
 with c2:
     #backspace
-    if st.button("🔙 Delete Last", use_container_width=True):
+    if st.button("🔙 Backspace", use_container_width=True):
         if st.session_state.sentence:
             st.session_state.sentence.pop()
 
@@ -391,13 +391,13 @@ def process_audio():
             }
 
             #start and stop
-            start_keywords = ["start", "begin", "camera on", "turn on", "activate"]
+            start_keywords = ["start", "begin", "camera on", "turn on", "activate", "on"]
             stop_keywords = ["stop", "off", "end", "stop camera", "turn off"]
 
             #button keywords            
             detect_keywords = ["detect", "capture", "what do you see", "what sign", "read sign", "what's the sign"]
-            add_keywords = ["add", "append", "insert"]
-            delete_keywords = ["delete", "remove", "backspace", "undo"]
+            add_keywords = ["add", "append", "insert", "ad"]
+            delete_keywords = ["delete", "remove", "backspace", "undo", "eat"]
             read_keywords = ["read aloud", "read sentence", "speak sentence", "read text", "read", "speak"]
             clear_keywords = ["clear", "reset", "empty", "erase"] 
             
