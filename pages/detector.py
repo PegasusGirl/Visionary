@@ -26,15 +26,13 @@ st.set_page_config(
 
 #intializing all session states
 if 'whisper_model' not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("tiny")
+    st.session_state.whisper_model = whisper.load_model("base")
 if "unlocked" not in st.session_state:
     st.session_state.unlocked = False
 if "input_key" not in st.session_state:
     st.session_state.input_key = 0
 if "camera_running" not in st.session_state:
     st.session_state.camera_running = False
-if "last_detected" not in st.session_state:
-    st.session_state.last_detected = []
 if "audio_queue" not in st.session_state:
     st.session_state.audio_queue = None
 
@@ -173,7 +171,7 @@ st.markdown("""
         left: 50%;
         transform: translateX(-50%);
         width: 50% !important;
-        max-width: 400px;
+        max-width: 375px;
         z-index: 10001;
         background: white !important;
         border-radius: 50px !important;
@@ -220,6 +218,11 @@ st.markdown("""
     }    
     [data-testid="stAudioInput"] label {
         display: none !important;
+    }
+    
+    .text {
+        font-size: 20px !important; 
+        margin-left: 5px !important;
     }
     
     </style>
@@ -301,7 +304,6 @@ else:
 #capturing and reading
 def perform_capture_and_read(items):
     sentence = format_detection_sentence(items)
-    st.session_state.last_detected = items
     queue_audio(sentence)
 
 
@@ -310,9 +312,10 @@ if webrtc_ctx.video_processor:
         items = list(webrtc_ctx.video_processor.current_detections)
     
     if st.button("📸 Capture & Read", type="primary", use_container_width=True):
-        st.subheader("Detected:")
+        sentence = format_detection_sentence(items)
+        st.session_state.last_detected_sentence = sentence
         perform_capture_and_read(items)
-        st.write(f"🔍 {format_detection_sentence(items)}")
+        st.rerun()
     else:
         st.write("⚪ Scanning...")
 else:
@@ -320,15 +323,15 @@ else:
 
 if "last_detected_sentence" in st.session_state:
     st.subheader("Detected:")
-    st.write(f"🔍 {st.session_state.last_detected_sentence}")
+    st.markdown(f'<p class="text">{st.session_state.last_detected_sentence}</p>', unsafe_allow_html=True)
+
+st.write("")
 
 if st.button("🗑️ Clear", type="secondary"):
     # Reset the variables holding the text
-    st.session_state.last_detected = []
     if "last_detected_sentence" in st.session_state:
         del st.session_state.last_detected_sentence
     
-    # Optional: Clear the audio queue so it doesn't read the old text again
     st.session_state.audio_queue = None
     
     st.rerun()
@@ -370,13 +373,12 @@ def process_audio():
             }
 
 
-            start_keywords = ["start", "begin", "camera on", "turn on", "activate"]
+            start_keywords = ["start", "begin", "camera on", "turn on", "activate", "on"]
             stop_keywords = ["stop", "off", "end", "stop camera", "turn off"]
             detect_keywords = ["detect", "capture", "read", "what do you see", "see"]
             clear_keywords = [
                 "clear", "clear all", "delete", "delete all", "reset", 
-                "clear everything", "new session", "start over", "erase"
-            ]
+                "clear everything", "new session", "start over", "erase", "eat"]
 
             if any(kw in cmd for kw in start_keywords):
                 st.session_state.camera_running = True
@@ -402,8 +404,8 @@ def process_audio():
 
             #deleting
             if any(kw in cmd for kw in clear_keywords):
-                st.session_state.last_detected = []
-                del st.session_state.last_detected
+                if "last_detected_sentence" in st.session_state:
+                    del st.session_state.last_detected_sentence
                 queue_audio("Deleted text.")
                 st.session_state.input_key += 1
                 st.rerun()
