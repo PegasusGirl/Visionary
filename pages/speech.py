@@ -80,7 +80,7 @@ def queue_audio(text):
 
 #overlaying button and welcome audio
 if not st.session_state.unlocked:
-    welcome_text = "Speech to Text Transcription. This feature requires audio access for transcription. Allow audio access and hear what others say!"
+    welcome_text = "Speech to Text Transcription. This feature requires audio access for transcription. Allow audio access and understand what others say!"
 
     st.markdown("""
         <style>
@@ -170,13 +170,13 @@ st.markdown("""
         
 
         width: 375px !important;
-        height: 85px !important;
+        height: 80px !important;
         z-index: 999999 !important;
         
       
         display: flex !important;
         align-items: center !important;
-        padding: 0 15px !important;
+        padding: 5px 20px !important;
     }
 
     div[class*="st-key-voice_"] [data-testid="stAudioInput"] > div {
@@ -193,11 +193,11 @@ st.markdown("""
         background-color: #FF0000 !important;
         color: white !important;
         border-radius: 50% !important;
-        min-width: 65px !important;
-        height: 65px !important;
+        min-width: 60px !important;
+        height: 60px !important;
         border: none !important;
         flex-shrink: 0 !important;
-        margin: 0 !important; /* Ensures it stays left */
+        margin: 0 !important; 
     }
 
     [data-testid="stAudioInput"] label { 
@@ -230,7 +230,7 @@ st.markdown("""
 
 st.markdown("<h1>Speech to Text Transcription</h1>", unsafe_allow_html=True)
 st.markdown("<p class='access'>This feature requires audio access for transcription.</p>", unsafe_allow_html=True)
-st.markdown("<p class='picture'>Allow audio access and hear what others say!</p>", unsafe_allow_html=True)
+st.markdown("<p class='picture'>Allow audio access and understand what others say!</p>", unsafe_allow_html=True)
 
 
 
@@ -305,16 +305,7 @@ with col2:
         filename = f"transcription_{timestamp}.txt"
         full_text = "\n\n".join(st.session_state.history)
 
-        #uses pending downloads if voice-triggered
-        if "pending_download" in st.session_state:
-            data = st.session_state.pending_download["data"]
-            fname = st.session_state.pending_download["file_name"]
-
-            #clear after one use
-            del st.session_state.pending_download
-        else:
-            data = full_text
-            fname = filename
+        
         
         st.download_button(
             label="💾 Save",
@@ -346,19 +337,6 @@ if transcription_file:
 
 for text in st.session_state.history:
     st.markdown(f'<p class="text">{text}</p>', unsafe_allow_html=True)
-
-
-def perform_capture_and_read(text_to_read):
-    if text_to_read:
-        audio_data = speak_audio(text_to_read)
-        if audio_data:
-            #put a time stamp to ensure audio is played even tho text is still the same
-            play_audio(audio_data, f"audio-{int(time.time())}")
-    else:
-        warning = speak_audio("Nothing to read.")
-        if warning:
-            play_audio(warning, f"warn-{int(time.time())}")
-
 
 
 #unlocked state
@@ -404,13 +382,11 @@ def process_audio():
                 "clear everything", "new session", "start over", "erase"
             ]
 
-            #deleting
+            #clearing
             if any(kw in cmd for kw in clear_keywords):
                 st.session_state.history = []
+                queue_audio("Transcription cleared.")
                 st.session_state.voice += 1
-                speak_audio_data = speak_audio("Transcription history cleared.")
-                if speak_audio_data:
-                    play_audio(speak_audio_data, "cmd-feedback")
                 st.rerun()
 
             #finding url for navigating to page
