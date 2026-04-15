@@ -1,7 +1,7 @@
 #COLOR FILTERING
 
 import streamlit as st # pyright: ignore[reportMissingImports]
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase # pyright: ignore[reportMissingImports]
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase # pyright: ignore[reportMissingImports]
 import numpy as np # pyright: ignore[reportMissingImports]
 import av # pyright: ignore[reportMissingImports] 
 import threading
@@ -291,7 +291,7 @@ def apply_color_correction(img, mode, intensity=1.0):
     return (blended* 255).astype("uint8")
 
 
-class ColorBlindTransformer(VideoTransformerBase):
+class ColorBlindTransformer(VideoProcessorBase):
     def __init__(self):
 
         #intialize lock
